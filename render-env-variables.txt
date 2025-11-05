@@ -1,0 +1,11 @@
+# Render Environment Variables
+# Add these in your Render Dashboard → Environment Variables
+
+# For development/testing only - this will still cause Mixed Content warnings
+VITE_API_URL=http://34.224.51.238
+
+# Alternative: Use a proxy service (will work but slower)
+# VITE_API_URL=https://cors-anywhere.herokuapp.com/http://34.224.51.238
+
+# Environment
+VITE_NODE_ENV=production

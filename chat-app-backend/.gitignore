@@ -1,0 +1,72 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Sensitive Configuration Files ###
+# Main application properties with credentials
+src/main/resources/application.properties
+src/main/resources/application-prod.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-local.properties
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Property files with credentials
+*-credentials.properties
+*-secrets.properties
+
+# Logs and runtime files
+*.log
+logs/
+media/
+
+# SSH Keys and Certificates
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+### Database files (if using local DB)
+*.db
+*.sqlite
+*.h2.db
+
+### Documentation - Ignore all markdown files ###
+*.md
+!README.md

@@ -1,0 +1,77 @@
+# Root .gitignore for Real Time Chat App
+
+### Sensitive Configuration Files ###
+# Application properties with credentials
+**/application.properties
+**/application-*.properties
+!**/application.properties.example
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Credentials and secrets
+*-credentials.*
+*-secrets.*
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+### Backend (Java/Spring Boot) ###
+target/
+.mvn/
+*.jar
+*.war
+*.class
+*.log
+
+### Frontend (Node/React) ###
+node_modules/
+dist/
+dist-ssr/
+.cache/
+*.local
+build/
+
+### IDEs ###
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.settings/
+.project
+.classpath
+
+### OS ###
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+### Logs ###
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+### Media/Uploads ###
+media/
+uploads/
+temp/
+
+### Documentation (optional - remove if you want to track these) ###
+# *.md
+
+### Database ###
+*.db
+*.sqlite
+*.h2.db
+
+### Documentation - Ignore all markdown files ###
+*.md
+!README.md

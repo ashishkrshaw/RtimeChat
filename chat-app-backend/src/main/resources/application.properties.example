@@ -1,0 +1,21 @@
+server.port=8080
+spring.application.name=chat-app-backend
+project.media=media
+
+# MongoDB Configuration
+# Replace with your MongoDB connection string
+spring.data.mongodb.uri=mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@YOUR_CLUSTER.mongodb.net/Chatdb?retryWrites=true&w=majority
+
+# Google OAuth2 Configuration
+# Get these from Google Cloud Console: https://console.cloud.google.com/
+spring.security.oauth2.client.registration.google.client-id=YOUR_GOOGLE_CLIENT_ID
+spring.security.oauth2.client.registration.google.client-secret=YOUR_GOOGLE_CLIENT_SECRET
+spring.security.oauth2.client.registration.google.scope=profile,email
+spring.security.oauth2.client.registration.google.redirect-uri={baseUrl}/login/oauth2/code/google
+spring.security.oauth2.client.provider.google.authorization-uri=https://accounts.google.com/o/oauth2/auth
+spring.security.oauth2.client.provider.google.token-uri=https://oauth2.googleapis.com/token
+spring.security.oauth2.client.provider.google.user-info-uri=https://www.googleapis.com/oauth2/v3/userinfo
+spring.security.oauth2.client.provider.google.user-name-attribute=sub
+
+# Frontend URL for OAuth redirect (override in production with environment variable)
+frontend.url=http://localhost:5173

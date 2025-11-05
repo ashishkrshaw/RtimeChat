@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:5.0
+    container_name: mongodb
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-db:/data/db
+    networks:
+      - app-network
+
+  boot-app:
+    image: ashishkrshaw/ashish
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb+srv://sawashishkumar327:QfVK0ogY0EOQ5Ptf@cluster0.0eme8jm.mongodb.net/Chatdb?retryWrites=true&w=majority
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+
+volumes:
+  mongo-db:
+
+networks:
+  app-network:

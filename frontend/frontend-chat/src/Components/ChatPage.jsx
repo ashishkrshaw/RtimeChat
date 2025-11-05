@@ -244,32 +244,38 @@ const ChatPage = () => {
               return prev;
             }
             
-            // Check for similar message (content + sender + time within 5 seconds)
+            // Check for temporary ID from current user (optimistic message)
+            const tempMessageIndex = prev.findIndex(msg => 
+              msg.sender === newMessage.sender && 
+              msg.content === newMessage.content && 
+              msg.messageType === newMessage.messageType &&
+              msg.id && msg.id.startsWith('temp_') &&
+              (msg.status === "sending" || msg.status === "sent")
+            );
+            
+            if (tempMessageIndex !== -1) {
+              console.log("🔄 Replacing optimistic message with server message");
+              // Replace the temporary message with the server message
+              const updatedMessages = [...prev];
+              updatedMessages[tempMessageIndex] = {
+                ...newMessage,
+                status: "delivered",
+                timestamp: newMessage.timestamp || newMessage.messageTime
+              };
+              return updatedMessages;
+            }
+            
+            // Check for duplicate by content (for messages from other users or edge cases)
             const isDuplicate = prev.some(existingMsg => 
               existingMsg.content === newMessage.content && 
               existingMsg.sender === newMessage.sender && 
               existingMsg.messageType === newMessage.messageType &&
-              Math.abs(
-                new Date(existingMsg.timestamp || existingMsg.messageTime) - 
-                new Date(newMessage.timestamp || newMessage.messageTime)
-              ) < 5000 // 5 seconds tolerance
+              existingMsg.timestamp === newMessage.timestamp
             );
             
             if (isDuplicate) {
-              console.log("🔄 Duplicate message detected by content/time, updating status");
-              // Update existing message with server data and mark as delivered
-              return prev.map(msg => 
-                (msg.sender === newMessage.sender && 
-                 msg.content === newMessage.content && 
-                 msg.messageType === newMessage.messageType &&
-                 (msg.status === "sending" || msg.status === "sent" || msg.status === "queued"))
-                  ? { 
-                      ...newMessage, 
-                      status: "delivered",
-                      timestamp: newMessage.timestamp || newMessage.messageTime || msg.timestamp
-                    }
-                  : msg
-              );
+              console.log("🔄 Duplicate message detected, skipping");
+              return prev;
             }
             
             // Add new message with delivered status
@@ -637,213 +643,217 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="bg-[#0b141a]">
-      {/* Header - WhatsApp-like minimalist dark theme */}
-      <header className="fixed w-full top-0 left-0 right-0 py-3 sm:py-4 shadow-md bg-[#202c33] text-white z-50">
-        <div className="container mx-auto px-4 flex flex-col sm:flex-row justify-between sm:justify-around items-center space-y-2 sm:space-y-0">
-          {/* Room name container */}
-          <div className="text-center sm:text-left">
-            <h1 className="text-base sm:text-lg font-medium">
-              <span className="text-[#e9edef]">{roomId}</span>
-              {roomCreator && (
-                <span className="text-xs ml-2 bg-[#00a884] text-white px-2 py-0.5 rounded">
-                  by {roomCreator}
-                </span>
-              )}
-            </h1>
+    <div className="bg-[#0b141a] h-screen flex flex-col">
+      {/* Header - Compact WhatsApp-like */}
+      <header className="flex-shrink-0 bg-[#202c33] text-white shadow-md">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          {/* Left: Room info with avatar */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-[#00a884] flex items-center justify-center text-white font-semibold text-sm">
+                {roomId.charAt(0).toUpperCase()}
+              </div>
+              <span 
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#202c33] ${stompConnected ? 'bg-[#00a884]' : 'bg-[#8696a0]'}`}
+              ></span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-sm font-medium text-[#e9edef] truncate">
+                  {roomId}
+                </h1>
+                {onlineUsers.length > 0 && (
+                  <span className="text-xs text-[#8696a0] flex-shrink-0">
+                    ({onlineUsers.length})
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[#8696a0] truncate">
+                {currentUser}
+                {roomCreator && roomCreator === currentUser && (
+                  <span className="ml-1">• Admin</span>
+                )}
+              </p>
+            </div>
           </div>
-          {/* Username container */}
-          <div className="text-center sm:text-left">
-            <h1 className="text-sm sm:text-base font-normal text-[#8696a0]">
-              {currentUser}
-              {/* Connection status indicator */}
-              <span className="inline-flex items-center ml-2">
-                <span 
-                  className={`w-2 h-2 rounded-full inline-block ${stompConnected ? 'bg-[#00a884]' : 'bg-[#ff5757]'}`}
-                ></span>
-                <span className="text-xs ml-1">
-                  {stompConnected ? 'online' : 'connecting...'}
-                </span>
-              </span>
-            </h1>
-          </div>
-          {/* Buttons: info, leave room, delete (if creator), and logout */}
-          <div className="flex gap-1.5 sm:gap-2">
-            {/* Online Users Info Button */}
+          
+          {/* Right: Action buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => setShowOnlineUsers(true)}
-              className="bg-[#00a884] hover:bg-[#06cf9c] px-2 py-1.5 sm:px-3 sm:py-1.5 rounded text-white transition-colors text-xs sm:text-sm flex items-center gap-1"
-              title="View online users"
+              className="p-2 hover:bg-[#374856] rounded-full transition-colors relative"
+              title="Online users"
             >
-              <MdInfo size={16} />
-              {onlineUsers.length > 0 && (
-                <span className="bg-[#202c33] text-white rounded-full px-1.5 text-xs">
+              <MdInfo size={20} className="text-[#8696a0]" />
+              {onlineUsers.length > 1 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-[#00a884] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                   {onlineUsers.length}
                 </span>
               )}
             </button>
             
-            <button
-              onClick={handleLeaveRoom}
-              className="bg-[#374856] hover:bg-[#475d6f] px-2 py-1.5 sm:px-3 sm:py-1.5 rounded text-white transition-colors text-xs sm:text-sm"
-            >
-              Leave
-            </button>
-            
-            {/* Delete Room Button - only show for creator */}
             {roomCreator === currentUser && (
               <button
                 onClick={handleDeleteRoom}
-                className="bg-[#ff5757] hover:bg-[#ff6b6b] px-2 py-1.5 sm:px-3 sm:py-1.5 rounded text-white transition-colors text-xs sm:text-sm flex items-center gap-1"
-                title="Delete room (permanent)"
+                className="p-2 hover:bg-[#374856] rounded-full transition-colors"
+                title="Delete room"
               >
-                <MdDelete size={16} />
+                <MdDelete size={20} className="text-[#ff5757]" />
               </button>
             )}
             
             <button
               onClick={handleLogout}
-              className="bg-[#ff5757] hover:bg-[#ff6b6b] px-2 py-1.5 sm:px-3 sm:py-1.5 rounded text-white transition-colors text-xs sm:text-sm"
+              className="p-2 hover:bg-[#374856] rounded-full transition-colors"
+              title="Logout"
             >
-              Logout
+              <svg className="w-5 h-5 text-[#8696a0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Online Users Modal - WhatsApp-like */}
+      {/* Online Users Modal - Compact WhatsApp-like */}
       {showOnlineUsers && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-60 p-4">
-          <div className="bg-[#202c33] rounded-lg p-5 shadow-2xl max-w-md w-full max-h-96 overflow-hidden">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-[#e9edef]">
-                Online Users ({onlineUsers.length})
-              </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-end sm:items-center justify-center z-60">
+          <div className="bg-[#202c33] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] sm:max-h-96 overflow-hidden animate-slide-up">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#374856]">
+              <div>
+                <h2 className="text-base font-medium text-[#e9edef]">
+                  Room Members
+                </h2>
+                <p className="text-xs text-[#8696a0]">{onlineUsers.length} online</p>
+              </div>
               <button
                 onClick={() => setShowOnlineUsers(false)}
-                className="text-[#8696a0] hover:text-[#e9edef]"
+                className="p-2 hover:bg-[#374856] rounded-full transition-colors"
               >
-                <FaTimes size={20} />
+                <FaTimes size={18} className="text-[#8696a0]" />
               </button>
             </div>
             
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            {/* User List */}
+            <div className="overflow-y-auto max-h-[60vh] sm:max-h-72">
               {onlineUsers.length === 0 ? (
-                <p className="text-[#8696a0] text-center py-4">
-                  No users online
-                </p>
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">👥</div>
+                  <p className="text-[#8696a0] text-sm">No users online</p>
+                </div>
               ) : (
                 onlineUsers.map((user, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2.5 bg-[#111b21] hover:bg-[#202c33] rounded transition-colors">
-                    <img
-                      className="h-10 w-10 rounded-full"
-                      src={`https://avatar.iran.liara.run/public/boy?username=${user}`}
-                      alt={`${user} avatar`}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-[#e9edef]">
+                  <div key={index} className="flex items-center gap-3 px-4 py-3 hover:bg-[#111b21] transition-colors border-b border-[#374856] last:border-b-0">
+                    <div className="relative flex-shrink-0">
+                      <img
+                        className="h-11 w-11 rounded-full ring-2 ring-[#374856]"
+                        src={`https://avatar.iran.liara.run/public/boy?username=${user}`}
+                        alt={`${user} avatar`}
+                      />
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a884] rounded-full ring-2 ring-[#202c33]"></div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-[#e9edef] text-sm truncate">
                         {user}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
                         {user === currentUser && (
-                          <span className="ml-2 text-xs bg-[#00a884] text-white px-2 py-0.5 rounded">
+                          <span className="text-[10px] bg-[#00a884] text-white px-1.5 py-0.5 rounded">
                             You
                           </span>
                         )}
                         {user === roomCreator && (
-                          <span className="ml-2 text-xs bg-[#ffa500] text-white px-2 py-0.5 rounded">
+                          <span className="text-[10px] bg-[#ffa500] text-white px-1.5 py-0.5 rounded">
                             Admin
                           </span>
                         )}
-                      </p>
+                        <span className="text-xs text-[#00a884]">Active now</span>
+                      </div>
                     </div>
-                    <div className="w-2.5 h-2.5 bg-[#00a884] rounded-full" title="Online"></div>
                   </div>
                 ))
               )}
-            </div>
-            
-            <div className="mt-4 pt-4 border-t border-[#374856]">
-              <button
-                onClick={() => setShowOnlineUsers(false)}
-                className="w-full bg-[#00a884] hover:bg-[#06cf9c] text-white py-2.5 px-4 rounded transition-colors font-medium"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Chat Messages - WhatsApp-like background */}
+      {/* Chat Messages - Compact WhatsApp-like */}
       <main
         ref={chatBoxRef}
-        className="pt-20 sm:pt-24 pb-20 sm:pb-24 px-2 sm:px-4 md:px-6 lg:px-10 w-full mx-auto h-screen overflow-auto bg-[#0b141a]"
+        className="flex-1 overflow-y-auto px-3 py-3 bg-[#0b141a]"
         style={{backgroundImage: 'url(https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png)', backgroundRepeat: 'repeat'}}
       >
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {messages.map((message, index) => {
             const isCurrentUser = message.sender === currentUser;
 
             return (
               <div
                 key={index}
-                className={`flex ${isCurrentUser ? "justify-end" : "justify-start"} px-2 sm:px-0`}
+                className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
               >
-                <div className={`p-2 sm:p-2.5 max-w-[85%] xs:max-w-[80%] sm:max-w-[70%] md:max-w-md lg:max-w-lg rounded-lg ${isCurrentUser ? 'bg-[#005c4b]' : 'bg-[#202c33]'} shadow-sm`}>
-                  <div className="flex flex-row gap-2">
+                <div className={`relative max-w-[85%] sm:max-w-[75%] md:max-w-md`}>
+                  {/* Message bubble */}
+                  <div className={`rounded-lg ${isCurrentUser ? 'bg-[#005c4b] rounded-tr-sm' : 'bg-[#202c33] rounded-tl-sm'} shadow-md px-2.5 py-1.5`}>
+                    {/* Sender name for other users */}
                     {!isCurrentUser && (
-                      <img
-                        className="h-8 w-8 rounded-full flex-shrink-0"
-                        src={`https://avatar.iran.liara.run/public/boy?username=${message.sender}`}
-                        alt=""
-                      />
+                      <p className="text-xs font-semibold text-[#00a884] mb-0.5">{message.sender}</p>
                     )}
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      {!isCurrentUser && (
-                        <p className="text-xs font-medium text-[#00a884]">{message.sender}</p>
+                    
+                    {/* Message content */}
+                    <div className="text-[14.2px] leading-[19px]">
+                      {message.messageType === "IMAGE" ? (
+                        <img 
+                          src={`${baseURL}${message.content}`} 
+                          alt="attachment" 
+                          className="max-w-[280px] rounded-md cursor-pointer hover:opacity-95 transition-opacity mb-1" 
+                          onClick={() => window.open(`${baseURL}${message.content}`, '_blank')}
+                        />
+                      ) : message.messageType === "AUDIO" ? (
+                        <audio 
+                          controls 
+                          src={`${baseURL}${message.content}`} 
+                          className="w-56 h-8 mb-1"
+                          style={{filter: 'invert(1) hue-rotate(180deg)'}}
+                        />
+                      ) : (
+                        <p className="break-words text-[#e9edef] whitespace-pre-wrap">{message.content}</p>
                       )}
-                      <div className="text-sm sm:text-[15px]">
-                        {message.messageType === "IMAGE" ? (
-                          <img 
-                            src={`${baseURL}${message.content}`} 
-                            alt="attachment" 
-                            className="max-w-48 sm:max-w-64 rounded cursor-pointer hover:opacity-90 transition-opacity" 
-                            onClick={() => window.open(`${baseURL}${message.content}`, '_blank')}
-                          />
-                        ) : message.messageType === "AUDIO" ? (
-                          <audio 
-                            controls 
-                            src={`${baseURL}${message.content}`} 
-                            className="w-48 sm:w-64"
-                          />
-                        ) : (
-                          <p className="break-words text-[#e9edef]">{message.content}</p>
-                        )}
-                      </div>
-                      <div className="flex justify-end items-center gap-1 mt-0.5">
-                        <p className="text-[11px] text-[#8696a0]">
-                          {timeAgo(message.timestamp || message.messageTime)}
-                        </p>
-                        {/* WhatsApp-style message status (only for current user) */}
-                        {isCurrentUser && (
-                          <div className="flex items-center">
-                            {message.status === "sending" && (
-                              <div className="w-3 h-3 border border-[#8696a0] border-t-transparent rounded-full animate-spin"></div>
-                            )}
-                            {message.status === "sent" && (
-                              <span className="text-[#8696a0] text-sm">✓</span>
-                            )}
-                            {message.status === "delivered" && (
-                              <span className="text-[#53bdeb] text-sm">✓✓</span>
-                            )}
-                            {message.status === "failed" && (
-                              <span className="text-[#ff5757] text-sm">!</span>
-                            )}
-                            {message.status === "queued" && (
-                              <span className="text-[#ffa500] text-sm" title="Queued">⏱</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                    </div>
+                    
+                    {/* Time and status */}
+                    <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                      <span className="text-[11px] text-[#8696a0] leading-none">
+                        {timeAgo(message.timestamp || message.messageTime)}
+                      </span>
+                      {isCurrentUser && (
+                        <span className="leading-none">
+                          {message.status === "sending" && (
+                            <svg className="w-3.5 h-3.5 text-[#8696a0] animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {message.status === "sent" && (
+                            <svg className="w-4 h-3.5 text-[#8696a0]" viewBox="0 0 16 11" fill="none">
+                              <path d="M11.796 0.161L5.036 6.921 2.696 4.581 0.676 6.601 5.036 10.961 13.816 2.181 11.796 0.161Z" fill="currentColor"/>
+                            </svg>
+                          )}
+                          {message.status === "delivered" && (
+                            <svg className="w-4 h-3.5 text-[#53bdeb]" viewBox="0 0 16 11" fill="none">
+                              <path d="M11.796 0.161L5.036 6.921 2.696 4.581 0.676 6.601 5.036 10.961 13.816 2.181 11.796 0.161Z" fill="currentColor"/>
+                              <path d="M13.796 0.161L7.036 6.921 5.736 5.621 7.036 6.921 13.796 0.161 15.816 2.181 7.036 10.961 5.736 9.661 7.036 10.961 15.816 2.181 13.796 0.161Z" fill="currentColor" opacity="0.6"/>
+                            </svg>
+                          )}
+                          {message.status === "failed" && (
+                            <svg className="w-3.5 h-3.5 text-[#ff5757]" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                            </svg>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -853,57 +863,67 @@ const ChatPage = () => {
         </div>
       </main>
 
-      {/* Input Container - WhatsApp-like */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#202c33] py-2 sm:py-3">
-        <div className="container mx-auto px-2 sm:px-4">
-          <div className="w-full mx-auto">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
+      {/* Input Container - Compact WhatsApp-like */}
+      <div className="flex-shrink-0 bg-[#202c33] px-3 py-2 border-t border-[#374856]">
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
 
-              <button
-                onClick={() => fileInputRef.current.click()}
-                className="bg-[#374856] hover:bg-[#475d6f] h-9 w-9 sm:h-10 sm:w-10 flex justify-center items-center rounded-full text-[#8696a0] hover:text-[#e9edef] transition-colors flex-shrink-0"
-              >
-                <MdAttachFile size={20} />
-              </button>
-              
-              <button
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-                className={`h-9 w-9 sm:h-10 sm:w-10 flex justify-center items-center rounded-full transition-colors flex-shrink-0 ${isRecording ? 'bg-[#ff5757] text-white' : 'bg-[#374856] hover:bg-[#475d6f] text-[#8696a0] hover:text-[#e9edef]'}`}
-              >
-                <FaMicrophone size={16} />
-              </button>
-
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isSending) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                type="text"
-                placeholder={stompConnected ? "Type a message" : "Connecting..."}
-                disabled={!stompConnected}
-                className={`flex-1 bg-[#2a3942] px-3 py-2.5 sm:px-4 rounded-lg focus:outline-none text-[#e9edef] placeholder-[#8696a0] text-sm sm:text-[15px] ${!stompConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-              />
-
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() || !stompConnected || isSending}
-                className="bg-[#00a884] hover:bg-[#06cf9c] disabled:bg-[#374856] disabled:cursor-not-allowed h-9 w-9 sm:h-10 sm:w-10 flex justify-center items-center rounded-full text-white transition-colors flex-shrink-0"
-              >
-                <MdSend size={20} />
-              </button>
-            </div>
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => fileInputRef.current.click()}
+              className="p-2 hover:bg-[#374856] rounded-full text-[#8696a0] hover:text-[#e9edef] transition-colors"
+              title="Attach file"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+            </button>
+            
+            <button
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              className={`p-2 rounded-full transition-colors ${isRecording ? 'bg-[#ff5757] text-white animate-pulse' : 'hover:bg-[#374856] text-[#8696a0] hover:text-[#e9edef]'}`}
+              title={isRecording ? "Release to send" : "Hold to record"}
+            >
+              <FaMicrophone size={18} />
+            </button>
           </div>
+
+          {/* Input field */}
+          <div className="flex-1 relative">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isSending && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              type="text"
+              placeholder={stompConnected ? "Message" : "Connecting..."}
+              disabled={!stompConnected}
+              className={`w-full bg-[#2a3942] pl-4 pr-10 py-2.5 rounded-lg focus:outline-none text-[#e9edef] placeholder-[#8696a0] text-[15px] ${!stompConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+            />
+          </div>
+
+          {/* Send button */}
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || !stompConnected || isSending}
+            className={`p-2.5 rounded-full transition-all flex-shrink-0 ${input.trim() && stompConnected ? 'bg-[#00a884] hover:bg-[#06cf9c] text-white scale-100' : 'bg-transparent text-[#8696a0] scale-0'}`}
+            title="Send message"
+          >
+            <MdSend size={20} />
+          </button>
         </div>
       </div>
     </div>

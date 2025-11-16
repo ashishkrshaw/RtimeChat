@@ -459,19 +459,18 @@ const JoinCreateChat = () => {
                         </p>
                       </div>
                       <button
-                        onClick={async () => {
+                        onClick={() => {
                           const savedRoomId = localStorage.getItem('chatRoomId');
                           if (savedRoomId) {
-                            try {
-                              const room = await joinChatApi(savedRoomId);
-                              toast.success("Rejoined room!");
-                              setRoomId(room.roomId);
-                              setConnected(true);
-                              navigate("/chat");
-                            } catch (error) {
-                              toast.error("Room no longer exists");
+                            // Instant navigation - no waiting for API
+                            setRoomId(savedRoomId);
+                            setConnected(true);
+                            navigate("/chat");
+                            
+                            // Verify in background
+                            joinChatApi(savedRoomId).catch(() => {
                               localStorage.removeItem('chatRoomId');
-                            }
+                            });
                           }
                         }}
                         className="px-3 py-2 bg-[#00a884] hover:bg-[#06cf9c] text-white rounded-md text-xs font-medium transition-all active:scale-95 flex-shrink-0 ml-2"

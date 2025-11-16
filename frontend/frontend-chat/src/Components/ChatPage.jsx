@@ -39,7 +39,6 @@ const ChatPage = () => {
       setRoomId(savedRoomId);
       setCurrentUser(savedUser);
       setConnected(true);
-      toast.success(`Welcome back, ${savedUser}! Rejoining room: ${savedRoomId}`);
     } else if (!connected && (!roomId || !currentUser)) {
       // Clear expired session data
       if (!isSessionValid) {
@@ -198,7 +197,6 @@ const ChatPage = () => {
       // Reduced connection timeout for faster feedback
       const connectionTimeout = setTimeout(() => {
         console.error("⏰ WebSocket connection timeout");
-        toast.error("Connection timeout. Retrying...");
         setStompConnected(false);
         // Auto-retry immediately
         setTimeout(connectWebSocket, 1000);
@@ -214,8 +212,6 @@ const ChatPage = () => {
         if (stompClientRef.current) {
           stompClientRef.current.retryCount = 0;
         }
-
-        toast.success("Connected to chat!");
         
         // WhatsApp-style: Process queued messages when connection restored
         if (messageQueueRef.current.length > 0) {
@@ -306,7 +302,6 @@ const ChatPage = () => {
         setStompConnected(false);
         setStompClient(null);
         stompClientRef.current = null;
-        toast.error("Connection failed. Retrying...");
         
         // WhatsApp-style exponential backoff retry
         const retryAttempts = stompClientRef.current?.retryCount || 0;
@@ -334,7 +329,6 @@ const ChatPage = () => {
         setTimeout(() => {
           if (connected && roomId && !stompConnected) {
             console.log("Attempting to reconnect...");
-            toast.info("Reconnecting...");
             connectWebSocket();
           }
         }, 3000);
